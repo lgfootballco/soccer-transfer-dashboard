@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premier League Transfer Dashboard with Gemini AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .player-name {
+            cursor: pointer;
+            color: #60a5fa; /* blue-400 */
+        }
+        .player-name:hover {
+            color: #93c5fd; /* blue-300 */
+            text-decoration: underline;
+        }
+        /* Modal styles */
+        #ai-modal {
+            transition: opacity 0.3s ease;
+        }
+        /* Spinner animation */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #F0B90B; /* Gold accent */
+            animation: spin 1s ease infinite;
+        }
+        .card-shadow {
+             box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .gold-accent {
+            color: #F0B90B;
+        }
+        .gold-accent-bg {
+            background-color: #F0B90B;
+        }
+        .gold-accent-bg:hover {
+            background-color: #d4a30a;
+        }
+        .favorite-btn {
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        .favorite-btn:hover {
+            transform: scale(1.1);
+        }
+        .favorite-btn .star-solid {
+            display: none;
+        }
+        .favorite-btn.favorited .star-solid {
+            display: block;
+            color: #F0B90B;
+        }
+        .favorite-btn.favorited .star-outline {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-5xl font-bold text-white">Premier League Transfer Dashboard</h1>
+            <p class="text-gray-400 mt-2">Your one-stop overview of the latest transfer news and deals, now with AI analysis.</p>
+        </header>
+        
+        <!-- Latest News Section -->
+        <div class="bg-gray-800 p-6 rounded-lg card-shadow mb-8">
+            <h2 class="text-2xl font-bold mb-4 border-b border-gray-700 pb-2 text-white">Latest Transfer Headlines</h2>
+            <ul class="list-disc list-inside space-y-2 text-gray-300">
+                <li><strong>Liverpool</strong> are reportedly preparing a British record bid for Newcastle's <strong>Alexander Isak</strong> after the sale of Luis Diaz.</li>
+                <li><strong>Manchester United</strong> have opened talks with RB Leipzig for striker <strong>Benjamin Sesko</strong> as they look to bolster their attack.</li>
+                <li><strong>Arsenal</strong> are in advanced talks with Crystal Palace for <strong>Eberechi Eze</strong>, having reportedly already agreed personal terms.</li>
+                <li><strong>Chelsea</strong> are close to securing a deal for Ajax's highly-rated young defender <strong>Jorrel Hato</strong> for a fee around £37m.</li>
+            </ul>
+        </div>
+        
+        <!-- Search Bar -->
+        <div class="mb-8">
+            <input type="text" id="search-bar" placeholder="🔍 Search for a team..." class="w-full p-3 rounded-lg bg-gray-800 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-yellow-500 transition card-shadow">
+        </div>
+
+        <div id="dashboard-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Club cards will be dynamically inserted here -->
+        </div>
+        
+        <div id="no-results" class="text-center py-12 text-gray-500 hidden">
+            <h3 class="text-2xl font-semibold">No teams found</h3>
+            <p>Try adjusting your search.</p>
+        </div>
+
+        <footer class="text-center mt-8 text-gray-500 text-sm">
+            <p>Data aggregated from public sources. Last updated: July 31, 2025.</p>
+        </footer>
+    </div>
+
+    <!-- AI Modal -->
+    <div id="ai-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-gray-800 border border-gray-700 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div class="p-4 border-b border-gray-700 flex justify-between items-center">
+                <h3 id="modal-title" class="text-xl font-bold text-white">AI Analysis</h3>
+                <button id="modal-close" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
+            </div>
+            <div id="modal-content" class="p-6 overflow-y-auto">
+                <div id="modal-spinner" class="flex justify-center items-center h-48">
+                    <div class="spinner"></div>
+                </div>
+                <div id="modal-text" class="text-gray-300 space-y-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA ---
+        const clubData = [
+            { name: "Arsenal", logo: "https://placehold.co/40x40/EF0107/FFFFFF?text=AFC", transfers: { in: [{ name: "Viktor Gyokeres", from: "Sporting", fee: "£63.5m" }, { name: "Kepa Arrizabalaga", from: "Chelsea", fee: "£5m" }, { name: "Martin Zubimendi", from: "Real Sociedad", fee: "£55m" }, { name: "Noni Madueke", from: "Chelsea", fee: "£52m" }], out: [{ name: "Jorginho", to: "Flamengo", fee: "Free" }, { name: "Kieran Tierney", to: "Celtic", fee: "Free" }] }, rumours: "Arsenal are said to have agreed personal terms with Eberechi Eze and remain in talks with Crystal Palace. Departures for Gabriel Jesus and Reiss Nelson are also being considered." },
+            { name: "Aston Villa", logo: "https://placehold.co/40x40/95BFE5/000000?text=AVFC", transfers: { in: [{ name: "Yasin Ozcan", from: "Kasimpasa", fee: "£5.8m" }, { name: "Modou Keba Cisse", from: "LASK", fee: "Undisclosed" }], out: [{ name: "Philippe Coutinho", to: "Vasco da Gama", fee: "Undisclosed" }, { name: "Kortney Hause", to: "N/A", fee: "Released" }] }, rumours: "Villa have made a formal enquiry for Porto striker Samu Aghehowa, with a reported price tag of £55m. They are also considering a move for left-back Àlex Moreno from Nottingham Forest." },
+            { name: "Bournemouth", logo: "https://placehold.co/40x40/DA291C/FFFFFF?text=AFCB", transfers: { in: [{ name: "Eli Junior Kroupi", from: "Lorient", fee: "Undisclosed" }, { name: "Adrien Truffert", from: "Rennes", fee: "£14.3m" }], out: [{ name: "Milos Kerkez", to: "Liverpool", fee: "£40m" }, { name: "Dean Huijsen", to: "Real Madrid", fee: "£50m" }] }, rumours: "After significant outgoings, Bournemouth are looking to reinvest, with several targets in Ligue 1 being monitored to strengthen their defense and midfield." },
+            { name: "Brentford", logo: "https://placehold.co/40x40/FF0000/FFFFFF?text=BFC", transfers: { in: [{ name: "Caoimhin Kelleher", from: "Liverpool", fee: "£18m" }, { name: "Jordan Henderson", from: "Ajax", fee: "Free" }], out: [{ name: "Bryan Mbeumo", to: "Man Utd", fee: "£71m" }, { name: "Christian Norgaard", to: "Arsenal", fee: "£15m" }] }, rumours: "Yoane Wissa has returned to training amid speculation of a move to Newcastle. The club is actively seeking a replacement for Mbeumo, with several forwards being scouted." },
+            { name: "Brighton & Hove Albion", logo: "https://placehold.co/40x40/0057B8/FFFFFF?text=BHAFC", transfers: { in: [{ name: "Tommy Watson", from: "Sunderland", fee: "£10m" }, { name: "Olivier Boscagli", from: "PSV", fee: "Free" }], out: [{ name: "Joao Pedro", to: "Chelsea", fee: "£60m" }, { name: "Evan Ferguson", to: "Roma", fee: "Loan" }] }, rumours: "With two key forwards gone, Brighton are prioritizing a new striker. They are also looking to add another creative midfielder to support their system under Fabian Hurzeler." },
+            { name: "Burnley", logo: "https://placehold.co/40x40/6C1D45/FFFFFF?text=BFC", transfers: { in: [{ name: "Bashir Humphreys", from: "Chelsea", fee: "Undisclosed" }, { name: "Kyle Walker", from: "Man City", fee: "£5m" }], out: [{ name: "James Trafford", to: "Man City", fee: "£31m" }, { name: "Josh Brownhill", to: "N/A", fee: "Released" }] }, rumours: "Burnley are looking to add more Premier League experience to their squad, with links to several established players to help their survival bid." },
+            { name: "Chelsea", logo: "https://placehold.co/40x40/034694/FFFFFF?text=CFC", transfers: { in: [{ name: "Jamie Gittens", from: "Dortmund", fee: "£51.5m" }, { name: "Joao Pedro", from: "Brighton", fee: "£60m" }], out: [{ name: "Noni Madueke", to: "Arsenal", fee: "£52m" }, { name: "Joao Felix", to: "Al-Nassr", fee: "£43.7m" }] }, rumours: "Closing in on Ajax defender Jorrel Hato. The club is also linked with Xavi Simons and Aston Villa's Morgan Rogers as they continue their youth-focused recruitment drive." },
+            { name: "Crystal Palace", logo: "https://placehold.co/40x40/1B458F/FFFFFF?text=CPFC", transfers: { in: [{ name: "Walter Benitez", from: "PSV", fee: "Free" }, { name: "Borna Sosa", from: "Ajax", fee: "£3m" }], out: [{ name: "Rob Holding", to: "Colorado Rapids", fee: "Free" }, { name: "Jeffrey Schlupp", to: "Norwich", fee: "Free" }] }, rumours: "The club has rejected a £30m bid for Jean-Philippe Mateta from Atlanta United and are determined to keep him. The future of Eberechi Eze remains the biggest talking point." },
+            { name: "Everton", logo: "https://placehold.co/40x40/003399/FFFFFF?text=EFC", transfers: { in: [{ name: "Charly Alcaraz", from: "Flamengo", fee: "£12.6m" }, { name: "Adam Aznou", from: "Bayern Munich", fee: "Undisclosed" }], out: [{ name: "Ben Godfrey", to: "Atalanta", fee: "£10m" }, { name: "Andre Gomes", to: "N/A", fee: "Released" }] }, rumours: "Everton are in desperate need of signings, with manager David Moyes expressing urgency. They are reportedly interested in former Arsenal midfielder Ainsley Maitland-Niles." },
+            { name: "Fulham", logo: "https://placehold.co/40x40/000000/FFFFFF?text=FFC", transfers: { in: [{ name: "Benjamin Lecomte", from: "Monaco", fee: "Undisclosed" }], out: [{ name: "Willian", to: "N/A", fee: "Released" }, { name: "Carlos Vinicius", to: "N/A", fee: "Released" }] }, rumours: "Fulham are linked with a move for another out-of-favour Arsenal player, Reiss Nelson, as they look to add depth to their wings. Rodrigo Muniz is also attracting interest from Newcastle." },
+            { name: "Ipswich Town", logo: "https://placehold.co/40x40/0057B8/FFFFFF?text=ITFC", transfers: { in: [{ name: "Axel Tuanzebe", from: "Man Utd", fee: "Free" }], out: [{ name: "Liam Delap", to: "Chelsea", fee: "£30m" }] }, rumours: "After a major sale, Ipswich are expected to reinvest heavily in the squad to bolster their chances of staying in the Premier League. A new striker is the top priority." },
+            { name: "Leeds United", logo: "https://placehold.co/40x40/FFCD00/1D428A?text=LUFC", transfers: { in: [{ name: "Anton Stach", from: "Hoffenheim", fee: "£17.4m" }, { name: "Sean Longstaff", from: "Newcastle", fee: "£12m" }], out: [{ name: "Rasmus Kristensen", to: "Eintracht Frankfurt", fee: "£7.6m" }, { name: "Junior Firpo", to: "N/A", fee: "Released" }] }, rumours: "Leeds have signed goalkeeper Lucas Perri from Lyon and remain active in the market, looking for a new winger after failing in a bid for Feyenoord's Igor Paixao." },
+            { name: "Leicester City", logo: "https://placehold.co/40x40/003090/FFFFFF?text=LCFC", transfers: { in: [{ name: "Conor Coady", from: "Wolves", fee: "£7.5m" }], out: [{ name: "Kelechi Iheanacho", to: "N/A", fee: "Released" }, { name: "Dennis Praet", to: "N/A", fee: "Released" }] }, rumours: "Wrexham are reportedly interested in signing Conor Coady, but Leicester are keen to keep the experienced defender for their Premier League return." },
+            { name: "Liverpool", logo: "https://placehold.co/40x40/C8102E/FFFFFF?text=LFC", transfers: { in: [{ name: "Hugo Ekitike", from: "Eintracht Frankfurt", fee: "£79m" }, { name: "Milos Kerkez", from: "Bournemouth", fee: "£40m" }], out: [{ name: "Luis Diaz", to: "Bayern Munich", fee: "£65m" }, { name: "Caoimhin Kelleher", to: "Brentford", fee: "£18m" }] }, rumours: "Preparing a potential British record offer for Newcastle's Alexander Isak and have reportedly agreed a six-year deal. Also linked with Real Madrid's Rodrygo." },
+            { name: "Manchester City", logo: "https://placehold.co/40x40/6CABDD/FFFFFF?text=MCFC", transfers: { in: [{ name: "Tijjani Reijnders", from: "AC Milan", fee: "£46.3m" }, { name: "Rayan Ait Nouri", from: "Wolves", fee: "£36.3m" }], out: [{ name: "Kevin De Bruyne", to: "N/A", fee: "Released" }, { name: "Kyle Walker", to: "Burnley", fee: "£5m" }] }, rumours: "Roma are reportedly interested in signing Manchester City youngster Claudio Echeverri on loan. The future of Jack Grealish is also under speculation." },
+            { name: "Manchester United", logo: "https://placehold.co/40x40/DA291C/FFFFFF?text=MUFC", transfers: { in: [{ name: "Bryan Mbeumo", from: "Brentford", fee: "£71m" }, { name: "Matheus Cunha", from: "Wolves", fee: "£62.5m" }], out: [{ name: "Marcus Rashford", to: "Barcelona", fee: "Loan" }] }, rumours: "Opened talks to sign RB Leipzig's Benjamin Sesko. Goalkeeper targets include Nick Pope and Gianluigi Donnarumma. Midfielder Morten Hjulmand is also on their wish list." },
+            { name: "Newcastle United", logo: "https://placehold.co/40x40/241F20/FFFFFF?text=NUFC", transfers: { in: [{ name: "Anthony Elanga", from: "Nottm Forest", fee: "£35m" }], out: [{ name: "Sean Longstaff", to: "Leeds", fee: "£12m" }, { name: "Lloyd Kelly", to: "Juventus", fee: "£20m" }] }, rumours: "Facing the prospect of losing Alexander Isak to Liverpool, Newcastle are considering Fulham's Rodrigo Muniz and RB Leipzig's Benjamin Sesko as replacements." },
+            { name: "Nottingham Forest", logo: "https://placehold.co/40x40/E53233/FFFFFF?text=NFFC", transfers: { in: [{ name: "Dan Ndoye", from: "Bologna", fee: "€40m" }], out: [{ name: "Anthony Elanga", to: "Newcastle", fee: "£35m" }, { name: "Orel Mangala", to: "Lyon", fee: "£25m" }] }, rumours: "After securing Morgan Gibbs-White to a new deal, Forest are interested in signing Adama Traore from Fulham. They have also made an approach for Juventus midfielder Douglas Luiz." },
+            { name: "Southampton", logo: "https://placehold.co/40x40/D71920/FFFFFF?text=SFC", transfers: { in: [{ name: "Joshua Quarshie", from: "Hoffenheim", fee: "£3.5m" }], out: [{ name: "Che Adams", to: "Torino", fee: "£15m" }] }, rumours: "The Saints are focused on adding defensive reinforcements and a new striker to replace Che Adams as they prepare for their return to the top flight." },
+            { name: "Tottenham Hotspur", logo: "https://placehold.co/40x40/132257/FFFFFF?text=THFC", transfers: { in: [{ name: "Mohammed Kudus", from: "West Ham", fee: "£55m" }, { name: "Mathys Tel", from: "Bayern Munich", fee: "£29.8m" }], out: [{ name: "Pierre-Emile Hojbjerg", to: "Marseille", fee: "£17m" }] }, rumours: "After Morgan Gibbs-White signed a new contract at Nottingham Forest, Tottenham must now look for an alternative. Rangers are reportedly interested in Spurs winger Mikey Moore." },
+            { name: "West Ham United", logo: "https://placehold.co/40x40/7A263A/FFFFFF?text=WHU", transfers: { in: [{ name: "Kyle Walker-Peters", from: "Southampton", fee: "Undisclosed" }], out: [{ name: "Mohammed Kudus", to: "Tottenham", fee: "£55m" }, { name: "Danny Ings", to: "N/A", fee: "Released" }] }, rumours: "West Ham are looking to reinvest the Kudus fee, with a new striker and creative midfielder being top priorities for manager Graham Potter." },
+            { name: "Wolverhampton Wanderers", logo: "https://placehold.co/40x40/FDB913/231F20?text=WWFC", transfers: { in: [{ name: "Armando Broja", from: "Chelsea", fee: "£25m" }], out: [{ name: "Matheus Cunha", to: "Man Utd", fee: "£62.5m" }, { name: "Rayan Ait Nouri", to: "Man City", fee: "£36.3m" }] }, rumours: "After two major departures, Wolves are in a rebuilding phase. They are focused on finding replacements and adding depth across the pitch to avoid a relegation battle." }
+        ];
+
+        // --- FAVORITES MANAGEMENT ---
+        const getFavorites = () => {
+            const favorites = localStorage.getItem('pl_favorites');
+            return favorites ? JSON.parse(favorites) : [];
+        };
+
+        const saveFavorites = (favorites) => {
+            localStorage.setItem('pl_favorites', JSON.stringify(favorites));
+        };
+
+        const toggleFavorite = (teamName) => {
+            let favorites = getFavorites();
+            if (favorites.includes(teamName)) {
+                favorites = favorites.filter(name => name !== teamName);
+            } else {
+                favorites.push(teamName);
+            }
+            saveFavorites(favorites);
+            renderDashboard(document.getElementById('search-bar').value);
+        };
+
+        // --- RENDER DASHBOARD ---
+        const dashboardGrid = document.getElementById('dashboard-grid');
+        const noResultsDiv = document.getElementById('no-results');
+
+        function renderDashboard(filter = '') {
+            const searchTerm = filter.toLowerCase();
+            const favorites = getFavorites();
+            
+            const filteredData = clubData.filter(club => club.name.toLowerCase().includes(searchTerm));
+
+            const favoriteTeams = filteredData.filter(club => favorites.includes(club.name));
+            const otherTeams = filteredData.filter(club => !favorites.includes(club.name));
+
+            const sortedData = [...favoriteTeams, ...otherTeams];
+
+            dashboardGrid.innerHTML = ''; // Clear existing content
+
+            if (sortedData.length === 0) {
+                noResultsDiv.classList.remove('hidden');
+                dashboardGrid.classList.add('hidden');
+            } else {
+                noResultsDiv.classList.add('hidden');
+                dashboardGrid.classList.remove('hidden');
+            }
+            
+            sortedData.forEach(club => {
+                const isFavorited = favorites.includes(club.name);
+                const card = document.createElement('div');
+                card.className = 'bg-gray-800 p-6 rounded-lg card-shadow flex flex-col transition-all duration-300 hover:shadow-xl hover:-translate-y-1 relative';
+                card.innerHTML = `
+                    <div class="absolute top-4 right-4 favorite-btn ${isFavorited ? 'favorited' : ''}" data-team-name="${club.name}">
+                        <svg class="w-6 h-6 star-outline text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.539 1.118l-3.975-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.539-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>
+                        <svg class="w-6 h-6 star-solid" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
+                    </div>
+                    <div class="flex items-center mb-4 border-b border-gray-700 pb-4">
+                        <img src="${club.logo}" alt="${club.name} logo" class="w-10 h-10 mr-4 rounded-full" onerror="this.style.display='none'">
+                        <h2 class="text-2xl font-bold text-white">${club.name}</h2>
+                    </div>
+                    <div class="flex-grow">
+                        <h3 class="font-semibold text-lg mb-3 text-gray-300">Confirmed Transfers</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <!-- IN TRANSFERS -->
+                            <div>
+                                <div class="flex items-center mb-2">
+                                    <svg class="w-5 h-5 text-green-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6"></path></svg>
+                                    <strong class="text-green-400">In</strong>
+                                </div>
+                                <ul class="space-y-1 text-sm text-gray-400">
+                                    ${club.transfers.in.map(p => `<li><span class="player-name" data-player-name="${p.name}">${p.name}</span> <span class="text-xs">(${p.fee})</span></li>`).join('') || '<li>None</li>'}
+                                </ul>
+                            </div>
+                            <!-- OUT TRANSFERS -->
+                            <div>
+                                <div class="flex items-center mb-2">
+                                    <svg class="w-5 h-5 text-red-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 12H6"></path></svg>
+                                    <strong class="text-red-400">Out</strong>
+                                </div>
+                                <ul class="space-y-1 text-sm text-gray-400">
+                                    ${club.transfers.out.map(p => `<li><span class="player-name" data-player-name="${p.name}">${p.name}</span> <span class="text-xs">(${p.fee})</span></li>`).join('') || '<li>None</li>'}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-gray-700">
+                        <h3 class="font-semibold text-md mb-2 text-gray-300">Latest Rumours</h3>
+                        <p class="text-sm text-gray-400">${club.rumours}</p>
+                    </div>
+                    <div class="mt-6 text-center">
+                        <button class="ai-analysis-btn gold-accent-bg text-black font-bold py-2 px-4 rounded-lg transition duration-300 w-full">
+                            ✨ AI Analysis
+                        </button>
+                    </div>
+                `;
+                dashboardGrid.appendChild(card);
+            });
+        }
+        
+        // --- GEMINI API INTEGRATION ---
+        const apiKey = ""; // Leave as-is. The platform will provide the key.
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+        async function generateContent(prompt, maxRetries = 3) {
+            let attempt = 0;
+            while (attempt < maxRetries) {
+                try {
+                    const payload = { contents: [{ parts: [{ text: prompt }] }] };
+                    const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    if (!response.ok) {
+                        if (response.status === 429 || response.status >= 500) { throw new Error(`API Error: ${response.status}`); }
+                        const errorBody = await response.json();
+                        console.error("API request failed:", errorBody);
+                        return `Error: ${errorBody.error?.message || "An unexpected error occurred."}`;
+                    }
+                    const result = await response.json();
+                    if (result.candidates?.[0]?.content?.parts?.[0]?.text) { return result.candidates[0].content.parts[0].text; }
+                    console.error("Unexpected API response structure:", result);
+                    if (result.promptFeedback?.blockReason) { return `Content generation blocked. Reason: ${result.promptFeedback.blockReason}`; }
+                    return "Sorry, I couldn't generate a response. The content may have been blocked.";
+                } catch (error) {
+                    console.error(`Attempt ${attempt + 1} failed:`, error);
+                    attempt++;
+                    if (attempt >= maxRetries) { return "Sorry, I'm having trouble connecting to the AI service. Please try again later."; }
+                    const delay = Math.pow(2, attempt) * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+
+        // --- MODAL HANDLING ---
+        const modal = document.getElementById('ai-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalText = document.getElementById('modal-text');
+        const modalSpinner = document.getElementById('modal-spinner');
+        const modalCloseBtn = document.getElementById('modal-close');
+
+        function showModal(title) {
+            modalTitle.textContent = title;
+            modalText.innerHTML = '';
+            modalSpinner.style.display = 'flex';
+            modal.classList.remove('hidden');
+        }
+
+        function hideModal() {
+            modal.classList.add('hidden');
+        }
+
+        function displayModalContent(content, type) {
+            modalSpinner.style.display = 'none';
+            let formattedContent = '';
+
+            if (type === 'scoutingReport') {
+                const lines = content.split('\n').filter(line => line.trim() !== '');
+                lines.forEach(line => {
+                    if (line.match(/^(Position|Style of Play|Key Strengths):/i)) {
+                        const parts = line.split(':');
+                        formattedContent += `<h4 class="text-lg font-bold text-yellow-400 mt-3 mb-1">${parts[0]}:</h4><p class="text-gray-300">${parts.slice(1).join(':').trim()}</p>`;
+                    } else {
+                        formattedContent += `<p class="text-gray-300">${line}</p>`;
+                    }
+                });
+            } else { // Default for 'analysis'
+                formattedContent = content.split('\n').filter(p => p.trim() !== '').map(p => `<p class="mb-3">${p}</p>`).join('');
+            }
+
+            modalText.innerHTML = formattedContent;
+        }
+
+        modalCloseBtn.addEventListener('click', hideModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) { hideModal(); }
+        });
+
+        // --- EVENT LISTENERS ---
+        const searchBar = document.getElementById('search-bar');
+        searchBar.addEventListener('input', (e) => {
+            renderDashboard(e.target.value);
+        });
+
+        dashboardGrid.addEventListener('click', async (e) => {
+            const favoriteBtn = e.target.closest('.favorite-btn');
+            if (favoriteBtn) {
+                const teamName = favoriteBtn.dataset.teamName;
+                toggleFavorite(teamName);
+                return;
+            }
+
+            const analysisBtn = e.target.closest('.ai-analysis-btn');
+            if (analysisBtn) {
+                const card = analysisBtn.closest('.bg-gray-800');
+                const clubName = card.querySelector('h2').textContent;
+                const clubInfo = clubData.find(c => c.name === clubName);
+                if (!clubInfo) return;
+                showModal(`Analysis for ${clubName}`);
+                const ins = clubInfo.transfers.in.map(p => `${p.name} (${p.fee})`).join(', ');
+                const outs = clubInfo.transfers.out.map(p => `${p.name} (${p.fee})`).join(', ');
+                const prompt = `Analyze the summer transfer window for the football club ${clubName}. Provide a brief, insightful summary. Consider: - Players In: ${ins||'None'} - Players Out: ${outs||'None'} - Latest Rumours: ${clubInfo.rumours}. Based on this, what are their likely strengths and weaknesses for the upcoming season? What do these moves suggest about their strategy? Keep the tone of a knowledgeable but concise sports analyst.`;
+                const analysis = await generateContent(prompt);
+                displayModalContent(analysis, 'analysis');
+            }
+
+            if (e.target.classList.contains('player-name')) {
+                const playerName = e.target.dataset.playerName;
+                showModal(`Scouting Report: ${playerName}`);
+                const prompt = `Generate a brief scouting report for the professional football player: ${playerName}. Include: - Position: Their primary position(s). - Style of Play: A short description of how they play. - Key Strengths: 2-3 of their main strengths. Keep the report concise and easy to read.`;
+                const report = await generateContent(prompt);
+                displayModalContent(report, 'scoutingReport');
+            }
+        });
+
+        // --- INITIAL RENDER ---
+        document.addEventListener('DOMContentLoaded', () => renderDashboard());
+    </script>
+</body>
+</html>
